@@ -10,9 +10,13 @@ const Navbar = () => {
 
   return (
     <div className="w-full fixed shadow bg-background border-b flex items-center justify-between px-3 shadow mb-2 py-2 ">
-      <div>
+      <div className="flex items-center gap-3">
         <Link href="/">
           <img src="/logo.png" alt="Logo" className="h-10" />
+        </Link>
+
+        <Link href="/mails">
+          <Button>Go to Mails</Button>
         </Link>
       </div>
       <div>
