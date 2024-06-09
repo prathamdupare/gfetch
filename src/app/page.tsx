@@ -5,63 +5,96 @@ import { Button } from "@/components/ui/button";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
-const page = () => {
+const Page = () => {
   const { data: session } = useSession();
   const [messages, setMessages] = useState([]);
   const [emails, setEmails] = useState([]);
+  const [emailsData, setEmailsData] = useState([]);
 
   useEffect(() => {
-    if (session?.access_token && messages.length === 0) {
-      fetch(
-        "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=10",
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        },
-      )
-        .then((response) => response.json())
-        .then((data) => {
+    console.log(emailsData);
+  }, [emailsData]);
+  useEffect(() => {
+    const fetchGmailMessages = async () => {
+      try {
+        if (session?.access_token && messages.length === 0) {
+          const response = await fetch(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=10",
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+              },
+            },
+          );
+          const data = await response.json();
           console.log(data);
           setMessages(data.messages);
           fetchEmails(data.messages);
-        })
-        .catch((error) => {
-          console.error("Error fetching Gmail messages:", error);
-        });
-    }
-  }, [session, messages]);
-
-  const fetchEmails = (messages) => {
-    const emailPromises = messages.map((message) =>
-      fetch(
-        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            Accept: "application/json",
-          },
-        },
-      ).then((response) => {
-        if (!response.ok) {
-          throw new Error(
-            `Error fetching email details for ${message.id}: ${response.status} - ${response.statusText}`,
-          );
         }
-        return response.json();
-      }),
-    );
+      } catch (error) {
+        console.error("Error fetching Gmail messages:", error);
+      }
+    };
 
-    Promise.all(emailPromises)
-      .then((emailData) => {
-        setEmails(emailData);
-        console.log(emailData); // Log email data
-      })
-      .catch((error) => {
-        console.error("Error fetching email details:", error);
-      });
+    const sendEmailsDataToApi = async () => {
+      try {
+        const response = await fetch("/api/gpt", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ emailsData }),
+        });
+        const data = await response.json();
+        console.log("=================THE DATA IS========", data);
+      } catch (error) {
+        console.error("Error sending emailsData to API:", error);
+      }
+    };
+
+    if (session?.access_token && emailsData.length > 0) {
+      sendEmailsDataToApi();
+    }
+
+    fetchGmailMessages();
+  }, [session]);
+
+  const fetchEmails = async (messages) => {
+    try {
+      const emailPromises = messages.map((message) =>
+        fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              Accept: "application/json",
+            },
+          },
+        ).then((response) => {
+          if (!response.ok) {
+            throw new Error(
+              `Error fetching email details for ${message.id}: ${response.status} - ${response.statusText}`,
+            );
+          }
+          return response.json();
+        }),
+      );
+
+      const emailData = await Promise.all(emailPromises);
+      setEmails(emailData);
+      const newEmailsData = emailData.map((email, index) => ({
+        id: email.id,
+        snippet: email.snippet,
+        index: index + 1, // Adding index property to maintain the order
+        classification: "",
+      }));
+      setEmailsData(newEmailsData);
+      console.log(newEmailsData);
+    } catch (error) {
+      console.error("Error fetching email details:", error);
+    }
   };
 
   console.log(session?.access_token);
@@ -80,8 +113,18 @@ const page = () => {
           </div>
         )}
       </div>
+      <div>
+        {emails.map((email) => (
+          <div key={email.id} className="bg-red-300">
+            <p>Email id</p>
+            <div>{email.id}</div>
+            <p>Email Snippet</p>
+            <div>{email.snippet}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
 
-export default page;
+export default Page;
