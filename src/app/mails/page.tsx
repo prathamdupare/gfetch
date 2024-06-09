@@ -96,7 +96,7 @@ const Page = () => {
     }
 
     fetchGmailMessages();
-  }, [session, selectedEmails]);
+  }, [session, selectedEmails, emailsData, messages]);
 
   const fetchEmails = async (messages) => {
     try {
