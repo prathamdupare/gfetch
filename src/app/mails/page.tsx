@@ -95,45 +95,45 @@ const Page = () => {
       sendEmailsDataToApi();
     }
 
+    const fetchEmails = async (messages) => {
+      try {
+        const emailPromises = messages.map((message) =>
+          fetch(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+                Accept: "application/json",
+              },
+            },
+          ).then((response) => {
+            if (!response.ok) {
+              throw new Error(
+                `Error fetching email details for ${message.id}: ${response.status} - ${response.statusText}`,
+              );
+            }
+            return response.json();
+          }),
+        );
+
+        const emailData = await Promise.all(emailPromises);
+        setEmails(emailData);
+        const newEmailsData = emailData.map((email, index) => ({
+          id: email.id,
+          snippet: email.snippet,
+          index: index + 1, // Adding index property to maintain the order
+          classification: "",
+        }));
+        setEmailsData(newEmailsData);
+        console.log(newEmailsData);
+      } catch (error) {
+        console.error("Error fetching email details:", error);
+      }
+    };
+
     fetchGmailMessages();
   }, [session, selectedEmails, emailsData, messages]);
-
-  const fetchEmails = async (messages) => {
-    try {
-      const emailPromises = messages.map((message) =>
-        fetch(
-          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-              Accept: "application/json",
-            },
-          },
-        ).then((response) => {
-          if (!response.ok) {
-            throw new Error(
-              `Error fetching email details for ${message.id}: ${response.status} - ${response.statusText}`,
-            );
-          }
-          return response.json();
-        }),
-      );
-
-      const emailData = await Promise.all(emailPromises);
-      setEmails(emailData);
-      const newEmailsData = emailData.map((email, index) => ({
-        id: email.id,
-        snippet: email.snippet,
-        index: index + 1, // Adding index property to maintain the order
-        classification: "",
-      }));
-      setEmailsData(newEmailsData);
-      console.log(newEmailsData);
-    } catch (error) {
-      console.error("Error fetching email details:", error);
-    }
-  };
 
   console.log(session?.access_token);
   return (
@@ -167,8 +167,8 @@ const Page = () => {
           <div className="">
             <ScrollArea className="h-[800px] w-[750px] rounded-md border p-4">
               {emailsData &&
-                emailsData.map((email) => (
-                  <div className="flex gap-2">
+                emailsData.map((email, index) => (
+                  <div key={index} className="flex gap-2">
                     <Card key={email.id}>
                       <CardHeader>
                         <CardTitle>{email.snippet}</CardTitle>
